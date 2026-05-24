@@ -32,11 +32,13 @@ function AdminDashboardContent() {
   const [allActivities, setAllActivities] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
   const [userVideos, setUserVideos] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all");
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isLoadingVideos, setIsLoadingVideos] = useState(false);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [isLoadingFeedbacks, setIsLoadingFeedbacks] = useState(false);
   const [adminVerified, setAdminVerified] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -121,11 +123,25 @@ function AdminDashboardContent() {
     }
   };
 
+  const fetchAllFeedbacks = async () => {
+    setIsLoadingFeedbacks(true);
+    try {
+      const res = await fetch(`${API_URL}/api/users/feedback`);
+      const d = await res.json();
+      if (d.success) setFeedbacks(d.feedbacks || []);
+    } catch (err) {
+      console.error("Error fetching feedbacks:", err);
+    } finally {
+      setIsLoadingFeedbacks(false);
+    }
+  };
+
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSidebarOpen(false);
     if (tab === "videos" && userVideos.length === 0) fetchAllVideos();
     if (tab === "users" && allUsers.length === 0) fetchAllUsers();
+    if (tab === "feedbacks" && feedbacks.length === 0) fetchAllFeedbacks();
   };
 
   const filteredActivities =
@@ -151,6 +167,7 @@ function AdminDashboardContent() {
     { id: "users",     icon: <Users size={18} />,           label: "Users" },
     { id: "videos",    icon: <Video size={18} />,            label: "Videos" },
     { id: "activities",icon: <Activity size={18} />,         label: "Activities" },
+    { id: "feedbacks", icon: <MessageSquare size={18} />,    label: "Feedbacks" },
   ];
 
   return (
@@ -201,12 +218,12 @@ function AdminDashboardContent() {
         </div>
 
         <div className="p-5 space-y-1 border-t border-gray-800">
-          <Link
-            href="/feedback"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-purple-500/20 hover:text-white transition"
+          <button
+            onClick={() => handleTabChange("feedbacks")}
+            className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-gray-400 hover:bg-purple-500/20 hover:text-white transition"
           >
-            <MessageSquare size={18} /> Feedback Page
-          </Link>
+            <MessageSquare size={18} /> Feedbacks
+          </button>
           <button
             onClick={() => { localStorage.clear(); router.push("/login"); }}
             className="flex items-center gap-3 w-full px-3 py-2.5 rounded-lg text-sm text-red-400 hover:bg-red-500/20 transition"
@@ -247,18 +264,19 @@ function AdminDashboardContent() {
                   {data && (
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
                       {[
-                        { label: "Total Users",      value: data.totalUsers,      color: "purple" },
-                        { label: "Activities",       value: data.totalActivities, color: "blue" },
-                        { label: "Feedback",         value: data.totalFeedback,   color: "green" },
-                        { label: "Videos",           value: data.totalVideos || 0,color: "indigo" },
-                        { label: "Action Types",     value: data.activitiesByType?.length || 0, color: "orange" },
+                        { label: "Total Users",      value: data.totalUsers,      color: "purple", tab: "users" },
+                        { label: "Activities",       value: data.totalActivities, color: "blue",   tab: "activities" },
+                        { label: "Feedback",         value: data.totalFeedback,   color: "green",  tab: "feedbacks" },
+                        { label: "Videos",           value: data.totalVideos || 0,color: "indigo", tab: "videos" },
+                        { label: "Action Types",     value: data.activitiesByType?.length || 0, color: "orange", tab: "activities" },
                       ].map((s) => (
                         <div
                           key={s.label}
-                          className={`bg-[#111827] border border-gray-800 p-4 rounded-xl hover:border-${s.color}-500 transition`}
+                          onClick={() => s.tab && handleTabChange(s.tab)}
+                          className={`bg-[#111827] border border-gray-800 p-4 rounded-xl hover:border-${s.color}-500 transition cursor-pointer group`}
                         >
-                          <p className="text-gray-400 text-xs mb-1">{s.label}</p>
-                          <p className={`text-${s.color}-400 text-2xl font-bold`}>{s.value}</p>
+                          <p className="text-gray-400 text-xs mb-1 group-hover:text-white transition-colors">{s.label}</p>
+                          <p className={`text-${s.color}-400 text-2xl font-bold group-hover:scale-110 transition-transform origin-left`}>{s.value}</p>
                         </div>
                       ))}
                     </div>
@@ -467,6 +485,55 @@ function AdminDashboardContent() {
                 <div className="text-center py-20 bg-[#111827] rounded-xl border border-gray-800">
                   <Video size={48} className="mx-auto text-gray-600 mb-4" />
                   <p className="text-gray-400">No videos generated yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ───── FEEDBACKS TAB ───── */}
+          {activeTab === "feedbacks" && (
+            <div className="space-y-4">
+              {isLoadingFeedbacks ? (
+                <div className="flex items-center gap-3 py-12">
+                  <Loader2 className="animate-spin text-purple-500" />
+                  <p className="text-gray-400">Fetching feedbacks...</p>
+                </div>
+              ) : feedbacks.length > 0 ? (
+                <>
+                  <p className="text-sm text-gray-400">{feedbacks.length} feedbacks received</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {feedbacks.map((fb) => (
+                      <div
+                        key={fb._id}
+                        className="bg-[#111827] border border-gray-800 rounded-xl p-5 hover:border-purple-500 transition"
+                      >
+                        <div className="flex justify-between items-start mb-4">
+                          <div>
+                            <p className="font-semibold text-purple-300">{fb.userName || 'Anonymous'}</p>
+                            <div className="flex text-yellow-400 text-xs mt-1">
+                              {Array.from({ length: fb.rating || 0 }).map((_, i) => (
+                                <span key={i}>⭐</span>
+                              ))}
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-gray-500">
+                            {fb.createdAt ? new Date(fb.createdAt).toLocaleDateString() : "N/A"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-300 bg-gray-900/50 p-3 rounded border border-gray-800 italic">
+                          "{fb.message || fb.comment || 'No message provided'}"
+                        </p>
+                        {fb.userId && fb.userId !== 'anonymous' && (
+                          <p className="text-[10px] text-gray-600 mt-3">User ID: {fb.userId}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-20 bg-[#111827] rounded-xl border border-gray-800">
+                  <MessageSquare size={48} className="mx-auto text-gray-600 mb-4" />
+                  <p className="text-gray-400">No feedbacks yet.</p>
                 </div>
               )}
             </div>
